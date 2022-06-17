@@ -1,0 +1,6 @@
+mingw32-make.exe --dry-run --always-make --keep-going --print-directory
+mingw32-make: Entering directory 'c:/Users/Sami/Documents/Projects/physicsengine'
+mingw32-make: Leaving directory 'c:/Users/Sami/Documents/Projects/physicsengine'
+ 
+mingw32-make: *** No targets specified and no makefile found.  Stop.
+
