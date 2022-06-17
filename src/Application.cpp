@@ -348,21 +348,28 @@ void Application::createGui() {
         ImGui::Begin("Editor");
 
         static Object* selectedObj = nullptr;
-        if (ImGui::ListBoxHeader("Objects")) {
+        ImGui::Text("Objects");
+        if (ImGui::BeginListBox("##objlist")) {
+            int idx = 0;
             for (Object* obj : Application::objects) {
-                std::string& obj_name = obj->name;
-                if (ImGui::Selectable(obj_name.c_str(), obj->selected)) {
+                const bool isSelected = (selectedObj == obj);
+                ImGui::PushID(idx);
+                if (ImGui::Selectable(obj->name.c_str(), isSelected))
                     selectedObj = obj;
-                }
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+                ImGui::PopID();
+                idx++;
             }
-            ImGui::ListBoxFooter();
+            ImGui::EndListBox();
         }
 
         ImGui::Spacing();
 
         ImGui::Text("Properties");
         if (selectedObj) {
-            ImGui::InputText("Name", selectedObj->name.data(), 256);
+            selectedObj->createPropertiesGui();
+            // ImGui::InputText("Name", selectedObj->name.data(), 256);
         }
 
         ImGui::End();

@@ -15,3 +15,7 @@ void VerletEntity::updatePosition(float dt) {
     position += vdt + acceleration*(dt*dt);
     acceleration = glm::vec3(0.0f, 0.0f, 0.0f);
 }
+
+void VerletEntity::createPropertiesGui() {
+    Entity::createPropertiesGui();
+}

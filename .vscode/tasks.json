@@ -7,7 +7,7 @@
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
-                "-O2",
+                //"-O2",
                 "-I${workspaceFolder}/include",
                 "-L${workspaceFolder}/lib",
                 "${workspaceFolder}/src/*.cpp",

@@ -7,7 +7,8 @@ class Object {
 public:
     Object(std::string name);
     std::string name;
-    bool selected;
+
+    virtual void createPropertiesGui();
 };
 
 #endif

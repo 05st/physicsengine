@@ -13,6 +13,8 @@ public:
     void accelerate(glm::vec3 acc);
 
     bool pinned = false;
+    
+    virtual void createPropertiesGui();
 private:
     glm::vec3 acceleration;
     glm::vec3 position_old;

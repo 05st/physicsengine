@@ -2,6 +2,7 @@
 #define ENTITY_H
 
 #include "glm/glm.hpp"
+#include "glm/gtc/type_ptr.hpp"
 
 #include "Object.hpp"
 #include "Model.hpp"
@@ -15,6 +16,8 @@ public:
     glm::vec3 position;
     glm::vec3 rotation;
     glm::vec3 scale;
+
+    virtual void createPropertiesGui();
 };
 
 #endif
