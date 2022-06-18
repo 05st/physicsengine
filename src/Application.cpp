@@ -34,6 +34,7 @@ float timeElapsed = 0.0f;
 Camera camera = Camera();
 
 std::vector<Object*> Application::objects = {};
+std::vector<ModelInfo> Application::loadedModels = {};
 std::vector<VerletEntity*> Application::updateList = {};
 std::vector<VerletLink> Application::updateListLinks = {};
 int Application::entityCount = 0;
@@ -180,9 +181,9 @@ void Application::stepPhysics(float dt) {
             // Collider
             glm::vec3 to_obj = object->position - colliderPos;
             float dist = glm::distance(object->position, colliderPos);
-            if (dist > (colliderRadius - 1.0f)) {
+            if (dist > (colliderRadius - object->colliderRadius)) {
                 glm::vec3 n = glm::normalize(to_obj);
-                object->position = colliderPos + n * (colliderRadius - 1.0f);
+                object->position = colliderPos + n * (colliderRadius - object->colliderRadius);
             }
 
             // Collisions
@@ -190,7 +191,7 @@ void Application::stepPhysics(float dt) {
                 if (object != object2) {
                     glm::vec3 coll_axis = object->position - object2->position;
                     float dist = glm::distance(object->position, object2->position);
-                    float radii = 2.0f;
+                    float radii = object->colliderRadius + object2->colliderRadius;
                     if (dist < radii) {
                         glm::vec3 n = glm::normalize(coll_axis);
                         float d = radii - dist;
@@ -232,79 +233,89 @@ void Application::createGui() {
         static const char* themes[]{"Dark", "Light", "Classic"};
         static int selectedTheme = 0;
 
-        static char pathBuf[512];
-        static ImGui::FileBrowser fileDialog;
-        fileDialog.SetTitle("Select .obj file");
-        fileDialog.SetTypeFilters({".obj"});
+        static int modelId = 0;
 
         ImGui::Begin("Debug");
 
         ImGui::Text("%s", "Camera");
         ImGui::SliderFloat("FOV", &camera.fov, 0.0f, 90.0f);
-        ImGui::SliderFloat3("Position", glm::value_ptr(camera.position), -100.0f, 100.0f);
+        ImGui::DragFloat3("Position", glm::value_ptr(camera.position), 0.2f);
 
         ImGui::Spacing();
 
         ImGui::Text("%s", "Insert VerletEntity");
-        if (ImGui::Button("Open"))
-            fileDialog.Open();
-        ImGui::SameLine();
-        ImGui::InputText("Model Path", pathBuf, 512);
-        if (ImGui::Button("Insert")) {
-            Model* test = new Model(std::string(pathBuf));
-            VerletEntity* e = new VerletEntity(test, camera.position, glm::vec3(), glm::vec3(1.0f, 1.0f, 1.0f));
-            Application::addEntity(e);
+        ImGui::InputInt("Model ID", &modelId);
+        if (ImGui::Button("Insert Single")) {
+            Model* m = nullptr;
+            for (ModelInfo minfo : Application::loadedModels) {
+                if (minfo.id == modelId) {
+                    m = minfo.model;
+                    break;
+                }
+            }
+            if (m) {
+                VerletEntity* e = new VerletEntity(m, camera.position, glm::vec3(), glm::vec3(1.0f, 1.0f, 1.0f));
+                Application::addEntity(e);
+            }
         }
         if (ImGui::Button("Insert 5x5x10 Softbody")) {
-            Model* test = new Model(std::string(pathBuf));
-            VerletEntity* es[5][5][10];
-            for (int x = 0; x < 5; x++) {
-                for (int y = 0; y < 5; y++) {
-                    for (int z = 0; z < 10; z++) {
-                        VerletEntity* e = new VerletEntity(test, glm::vec3(camera.position.x + x*2.4f, camera.position.y - y*2.4f, camera.position.z + z*2.4f), glm::vec3(), glm::vec3(1.0f, 1.0f, 1.0f));
-                        es[x][y][z] = e;
-                        Application::addEntity(e);
-                        if (x-1 >= 0) {
-                            VerletLink l;
-                            l.e1 = es[x-1][y][z];
-                            l.e2 = e;
-                            l.targetDist = 2.3f;
-                            updateListLinks.push_back(l);
-                        }
-                        if (y-1 >= 0) {
-                            VerletLink l;
-                            l.e1 = es[x][y-1][z];
-                            l.e2 = e;
-                            l.targetDist = 2.3f;
-                            updateListLinks.push_back(l);
-                        }
-                        if (z-1 >= 0) {
-                            VerletLink l;
-                            l.e1 = es[x][y][z-1];
-                            l.e2 = e;
-                            l.targetDist = 2.3f;
-                            updateListLinks.push_back(l);
-                        }
-                        if (y-1 >= 0 && x-1 >= 0) {
-                            VerletLink l;
-                            l.e1 = es[x-1][y-1][z];
-                            l.e2 = e;
-                            l.targetDist = sqrtf(2.0f * 2.3f * 2.3f);
-                            updateListLinks.push_back(l);
-                        }
-                        if (y-1 >= 0 && z-1 >= 0) {
-                            VerletLink l;
-                            l.e1 = es[x][y-1][z-1];
-                            l.e2 = e;
-                            l.targetDist = sqrtf(2.0f * 2.3f * 2.3f);
-                            updateListLinks.push_back(l);
-                        }
-                        if (y-1 >= 0 && z+1 <= 9) {
-                            VerletLink l;
-                            l.e1 = es[x][y-1][z+1];
-                            l.e2 = e;
-                            l.targetDist = sqrtf(2.0f * 2.3f * 2.3f);
-                            updateListLinks.push_back(l);
+            Model* m = nullptr;
+            for (ModelInfo minfo : Application::loadedModels) {
+                if (minfo.id == modelId) {
+                    m = minfo.model;
+                    break;
+                }
+            }
+            if (m) {
+                VerletEntity* es[5][5][10];
+                for (int x = 0; x < 5; x++) {
+                    for (int y = 0; y < 5; y++) {
+                        for (int z = 0; z < 10; z++) {
+                            VerletEntity* e = new VerletEntity(m, glm::vec3(camera.position.x + x*2.4f, camera.position.y - y*2.4f, camera.position.z + z*2.4f), glm::vec3(), glm::vec3(1.0f, 1.0f, 1.0f));
+                            es[x][y][z] = e;
+                            Application::addEntity(e);
+                            if (x-1 >= 0) {
+                                VerletLink l;
+                                l.e1 = es[x-1][y][z];
+                                l.e2 = e;
+                                l.targetDist = 2.3f;
+                                updateListLinks.push_back(l);
+                            }
+                            if (y-1 >= 0) {
+                                VerletLink l;
+                                l.e1 = es[x][y-1][z];
+                                l.e2 = e;
+                                l.targetDist = 2.3f;
+                                updateListLinks.push_back(l);
+                            }
+                            if (z-1 >= 0) {
+                                VerletLink l;
+                                l.e1 = es[x][y][z-1];
+                                l.e2 = e;
+                                l.targetDist = 2.3f;
+                                updateListLinks.push_back(l);
+                            }
+                            if (y-1 >= 0 && x-1 >= 0) {
+                                VerletLink l;
+                                l.e1 = es[x-1][y-1][z];
+                                l.e2 = e;
+                                l.targetDist = sqrtf(2.0f * 2.3f * 2.3f);
+                                updateListLinks.push_back(l);
+                            }
+                            if (y-1 >= 0 && z-1 >= 0) {
+                                VerletLink l;
+                                l.e1 = es[x][y-1][z-1];
+                                l.e2 = e;
+                                l.targetDist = sqrtf(2.0f * 2.3f * 2.3f);
+                                updateListLinks.push_back(l);
+                            }
+                            if (y-1 >= 0 && z+1 <= 9) {
+                                VerletLink l;
+                                l.e1 = es[x][y-1][z+1];
+                                l.e2 = e;
+                                l.targetDist = sqrtf(2.0f * 2.3f * 2.3f);
+                                updateListLinks.push_back(l);
+                            }
                         }
                     }
                 }
@@ -331,16 +342,9 @@ void Application::createGui() {
 
         ImGui::Spacing();
 
+        ImGui::Text("Mouse %s", (mouseLocked ? "locked" : "unlocked"));
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
         ImGui::End();
-
-        fileDialog.Display();
-        if (fileDialog.HasSelected()) {
-            std::string sel = fileDialog.GetSelected().string();
-            std::replace(sel.begin(), sel.end(), '\\', '/');
-            strcpy(pathBuf, sel.c_str());
-            fileDialog.ClearSelected();
-        }
     }
 
     // Editor window
@@ -373,6 +377,77 @@ void Application::createGui() {
         }
 
         ImGui::End();
+    }
+
+    // Model Browser
+    {
+        static char pathBuf[512];
+        static char nameBuf[256];
+        static ImGui::FileBrowser fileDialog;
+        fileDialog.SetTitle("Select .obj file");
+        fileDialog.SetTypeFilters({".obj"});
+
+        ImGui::Begin("Models");
+
+        static int selectedModelIdx = -1;
+        ImGui::Text("Loaded Models");
+        if (ImGui::BeginListBox("##modelList")) {
+            for (int i = 0; i < Application::loadedModels.size(); i++) {
+                const bool isSelected = (selectedModelIdx == i);
+                ModelInfo minfo = Application::loadedModels[i];
+                ImGui::PushID(i);
+                if (ImGui::Selectable(minfo.name.c_str(), isSelected))
+                    selectedModelIdx = i;
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+                ImGui::PopID();
+            }
+            ImGui::EndListBox();
+        }
+
+        ImGui::Spacing();
+
+        ImGui::Text("Load Model");
+        if (ImGui::Button("Open"))
+            fileDialog.Open();
+        ImGui::SameLine();
+        ImGui::InputText("Path", pathBuf, 512);
+        ImGui::InputText("Name##load", nameBuf, 256);
+        if (ImGui::Button("Load")) {
+            std::string pathBuff(pathBuf);
+            std::string nameBuff(nameBuf);
+            Model* model = new Model(pathBuff);
+            ModelInfo minfo;
+            minfo.path = pathBuff;
+            minfo.name = nameBuff;
+            minfo.model = model;
+            minfo.id = Application::loadedModels.size();
+            Application::loadedModels.push_back(minfo);
+        }
+
+        ImGui::Spacing();
+
+        ImGui::Text("Properties");
+        if (selectedModelIdx != -1) {
+            ModelInfo minfo = Application::loadedModels[selectedModelIdx];
+            static char nameBuf[256];
+            strcpy(nameBuf, minfo.name.c_str());
+            ImGui::Text("ID: %d", minfo.id);
+            ImGui::Text("Path: %s", minfo.path.c_str());
+            ImGui::Text("Model Address: 0x%x", minfo.model);
+            if (ImGui::InputText("Name##prop", nameBuf, 256))
+                Application::loadedModels[selectedModelIdx].name = std::string(nameBuf);
+        }
+
+        ImGui::End();
+
+        fileDialog.Display();
+        if (fileDialog.HasSelected()) {
+            std::string sel = fileDialog.GetSelected().string();
+            std::replace(sel.begin(), sel.end(), '\\', '/');
+            strcpy(pathBuf, sel.c_str());
+            fileDialog.ClearSelected();
+        }
     }
 }
 

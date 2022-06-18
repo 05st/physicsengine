@@ -13,6 +13,13 @@
 
 #include <vector>
 
+struct ModelInfo {
+    std::string path;
+    std::string name;
+    Model* model;
+    int id;
+};
+
 class Application {
 public:
     void run();
@@ -21,6 +28,7 @@ private:
     Shader* shader;
 
     static std::vector<Object*> objects;
+    static std::vector<ModelInfo> loadedModels;
     static std::vector<VerletEntity*> updateList;
     static std::vector<VerletLink> updateListLinks;
     static int entityCount;

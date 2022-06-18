@@ -12,6 +12,7 @@ public:
     void updatePosition(float dt);
     void accelerate(glm::vec3 acc);
 
+    float colliderRadius = 1.0f;
     bool pinned = false;
     
     virtual void createPropertiesGui();
